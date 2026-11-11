@@ -99,3 +99,12 @@ addition for multi-instance rate limiting. The app runs without it, as the brief
 ### ED-16: No fake features
 Password reset, email verification and MFA are not implemented, so they do not appear in the UI.
 Every dashboard figure comes from the API. Empty states are shown for new accounts.
+
+### ED-17: Demo history through the real services (ShiftableClock)
+**Decision:** the application `Clock` is a `ShiftableClock` with a thread-local offset. Only the
+dev-profile seeder uses it, to replay 30 days of activity "as of" past instants through the real
+services, so the seeded postings, idempotency records, outbox events and audit rows are exactly
+what the API would produce.
+**Alternative:** SQL inserts of historical rows. Rejected because they bypass the ledger
+invariants and drift from real behavior. The offset is always reset and never touched outside
+`dev.ledgerforge.seed`, and production refuses to start with seeding enabled.
