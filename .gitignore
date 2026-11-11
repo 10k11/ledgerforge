@@ -1,0 +1,24 @@
+# Build output
+target/
+dist/
+build/
+coverage/
+node_modules/
+*.log
+.vite/
+playwright-report/
+test-results/
+
+# Environment & secrets (only .env.example files are committed)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db

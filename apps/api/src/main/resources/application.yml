@@ -1,0 +1,172 @@
+spring:
+  application:
+    name: ledgerforge-api
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/ledgerforge}
+    username: ${DATABASE_USERNAME:ledgerforge}
+    password: ${DATABASE_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DATABASE_POOL_SIZE:20}
+      connection-timeout: 10000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate          # Flyway owns the schema in every environment
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+          batch_size: 50
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jackson:
+    default-property-inclusion: non_null
+    deserialization:
+      # Money is integer minor units: 10.5 must be rejected, never truncated to 10.
+      accept-float-as-int: false
+      fail-on-null-for-primitives: true
+  servlet:
+    multipart:
+      enabled: false
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+  error:
+    include-stacktrace: never
+    include-message: never
+  tomcat:
+    max-swallow-size: 64KB
+    max-http-form-post-size: 64KB
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+      group:
+        readiness:
+          include: readinessState,db
+        liveness:
+          include: livenessState
+  health:
+    db:
+      enabled: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: ${API_DOCS_ENABLED:true}
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: ${API_DOCS_ENABLED:true}
+  default-produces-media-type: application/json
+
+logging:
+  level:
+    root: INFO
+    dev.ledgerforge: INFO
+    org.hibernate.SQL: WARN
+
+app:
+  env: ${APP_ENV:development}
+  frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
+  self-base-url: ${SELF_BASE_URL:http://localhost:8080}
+  security:
+    jwt:
+      secret: ${JWT_SECRET:}
+      issuer: ${JWT_ISSUER:ledgerforge-api}
+      audience: ${JWT_AUDIENCE:ledgerforge-web}
+      access-token-ttl: ${JWT_ACCESS_TTL:PT10M}
+    refresh-token-ttl: ${REFRESH_TOKEN_TTL:P7D}
+    cookie-secure: ${COOKIE_SECURE:false}
+    bcrypt-strength: ${BCRYPT_STRENGTH:12}
+    max-failed-logins: 5
+    lockout-duration: PT15M
+    merchant-self-signup: ${MERCHANT_SELF_SIGNUP:true}
+  sandbox:
+    enabled: ${SANDBOX_ENABLED:true}
+    max-top-up-minor: ${SANDBOX_MAX_TOP_UP_MINOR:10000000}          # 100,000.00
+    daily-top-up-limit-minor: ${SANDBOX_DAILY_TOP_UP_LIMIT_MINOR:50000000}  # 500,000.00
+  payments:
+    platform-fee-bps: ${PLATFORM_FEE_BPS:200}     # 2.00% illustrative fee
+    max-amount-minor: 100000000000
+  idempotency:
+    ttl: ${IDEMPOTENCY_TTL:PT24H}
+    cleanup-interval: PT10M
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    auth-per-minute: ${RATE_LIMIT_AUTH_PER_MINUTE:20}
+    money-per-minute: ${RATE_LIMIT_MONEY_PER_MINUTE:60}
+  webhooks:
+    workers-enabled: ${WEBHOOK_WORKERS_ENABLED:true}
+    allow-private-targets: ${WEBHOOK_ALLOW_PRIVATE_TARGETS:false}
+    allow-plain-http: ${WEBHOOK_ALLOW_PLAIN_HTTP:false}
+    encryption-key: ${WEBHOOK_ENCRYPTION_KEY:}
+    max-attempts: 8
+    max-manual-replays: 5
+    base-backoff: PT10S
+    max-backoff: PT1H
+    connect-timeout: PT3S
+    request-timeout: PT10S
+    lease-duration: PT60S
+    poll-interval-ms: 1000
+    batch-size: 25
+    signature-tolerance: PT5M
+  seed:
+    enabled: ${SEED_DEMO_DATA:false}
+  bootstrap-admin:
+    email: ${BOOTSTRAP_ADMIN_EMAIL:}
+    password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+logging:
+  level:
+    dev.ledgerforge: DEBUG
+app:
+  webhooks:
+    allow-private-targets: true
+    allow-plain-http: true
+  seed:
+    enabled: ${SEED_DEMO_DATA:true}
+
+---
+# Production: simulated money creation, demo data and private webhook targets
+# are disabled here AND re-checked at startup by ProductionSafetyGuard.
+spring:
+  config:
+    activate:
+      on-profile: prod
+logging:
+  structured:
+    format:
+      console: ecs
+app:
+  env: production
+  sandbox:
+    enabled: false
+  seed:
+    enabled: false
+  security:
+    cookie-secure: true
+  webhooks:
+    allow-private-targets: false
+    allow-plain-http: false
+springdoc:
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:false}
+  swagger-ui:
+    enabled: ${API_DOCS_ENABLED:false}
