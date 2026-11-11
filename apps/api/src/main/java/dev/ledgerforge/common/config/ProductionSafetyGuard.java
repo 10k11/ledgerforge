@@ -20,6 +20,14 @@ public class ProductionSafetyGuard {
 
     @PostConstruct
     void verify() {
+        verify(props);
+    }
+
+    /**
+     * Also invoked from {@code main} on ApplicationEnvironmentPreparedEvent, i.e. before the
+     * datasource or Flyway exist, so an unsafe production configuration never touches the database.
+     */
+    public static void verify(AppProperties props) {
         String secret = props.security().jwt().secret();
         if (secret == null || secret.getBytes(java.nio.charset.StandardCharsets.UTF_8).length < MIN_SECRET_BYTES) {
             throw new IllegalStateException("JWT_SECRET must be set and at least 32 bytes long");

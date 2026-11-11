@@ -1,0 +1,4504 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "LedgerForge API",
+        "description": "Payment infrastructure sandbox built on a double-entry ledger.\n\n* All amounts are integers in minor units (paise / cents) with an explicit currency.\n* Money-moving POST endpoints require an `Idempotency-Key` header. Replays return the\n  original response with `Idempotent-Replayed: true`; reusing a key with a different\n  body returns `409 IDEMPOTENCY_KEY_REUSED`.\n* Errors use RFC 9457 Problem Details (`application/problem+json`) with a stable\n  `code` and a `correlationId` matching the `X-Request-Id` response header.\n* Educational sandbox only: no real money, cards or bank credentials.\n",
+        "license": {
+            "name": "MIT"
+        },
+        "version": "v1"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8080",
+            "description": "Generated server url"
+        }
+    ],
+    "tags": [
+        {
+            "name": "Overview",
+            "description": "Dashboard metrics and platform metadata"
+        },
+        {
+            "name": "Transfers",
+            "description": "Wallet-to-wallet transfers"
+        },
+        {
+            "name": "Transactions",
+            "description": "Ledger-backed transaction history and the ledger inspector"
+        },
+        {
+            "name": "Payments",
+            "description": "Payment-intent lifecycle: create, confirm (capture), cancel"
+        },
+        {
+            "name": "Webhooks",
+            "description": "Webhook endpoints, signed deliveries, retries and replay"
+        },
+        {
+            "name": "Merchant",
+            "description": "Merchant dashboard, payments, reporting and payouts"
+        },
+        {
+            "name": "Wallet",
+            "description": "Customer wallet, sandbox funding and statements"
+        },
+        {
+            "name": "Admin",
+            "description": "Ledger reconciliation, platform overview, audit log and corrections"
+        },
+        {
+            "name": "Refunds",
+            "description": "Full and partial refunds of captured payments"
+        },
+        {
+            "name": "Authentication",
+            "description": "Registration, login, token refresh and session management"
+        }
+    ],
+    "paths": {
+        "/api/v1/wallet/sandbox/top-ups": {
+            "post": {
+                "tags": [
+                    "Wallet"
+                ],
+                "summary": "Add simulated funds (sandbox only)",
+                "description": "Posts Debit Platform Funding Clearing / Credit Customer Wallet. Requires Idempotency-Key. Returns 403 SANDBOX_DISABLED in production.",
+                "operationId": "topUp",
+                "parameters": [
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "description": "Unique key per logical top-up (UUID recommended)",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TopUpRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TopUpResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/transfers": {
+            "get": {
+                "tags": [
+                    "Transfers"
+                ],
+                "summary": "List transfers sent or received",
+                "operationId": "list",
+                "parameters": [
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageResponseTransferView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Transfers"
+                ],
+                "summary": "Send money to another customer",
+                "description": "Requires Idempotency-Key. Repeating the same key and body returns the original result (Idempotent-Replayed: true); the same key with a different body returns 409.",
+                "operationId": "create",
+                "parameters": [
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateTransferRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TransferView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/transfers/recipient-lookup": {
+            "post": {
+                "tags": [
+                    "Transfers"
+                ],
+                "summary": "Resolve a recipient for review before sending (masked details only)",
+                "operationId": "lookup",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RecipientLookupRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RecipientView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/payments/{paymentId}/refunds": {
+            "get": {
+                "tags": [
+                    "Refunds"
+                ],
+                "summary": "List refunds of a payment",
+                "operationId": "list_1",
+                "parameters": [
+                    {
+                        "name": "paymentId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/RefundView"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Refunds"
+                ],
+                "summary": "Refund a captured payment (merchant of the payment or admin)",
+                "description": "Omit amountMinor for a full refund of the remaining amount. Requires Idempotency-Key.",
+                "operationId": "create_1",
+                "parameters": [
+                    {
+                        "name": "paymentId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateRefundRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RefundView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/payment-intents": {
+            "get": {
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "List payments visible to the caller",
+                "description": "Customers see their own payments, merchants payments made to them, admins all payments.",
+                "operationId": "list_2",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "currency",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageResponsePaymentIntentView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Create a payment intent to a merchant (customer only)",
+                "description": "Fee is computed server-side and snapshotted. Requires Idempotency-Key.",
+                "operationId": "create_2",
+                "parameters": [
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreatePaymentIntentRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentIntentView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/payment-intents/{paymentId}/confirm": {
+            "post": {
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Confirm and capture a payment intent",
+                "description": "Posts balanced ledger entries and moves the intent to SUCCEEDED, or to FAILED when the sandbox processor declines. Requires Idempotency-Key; a payment can be captured at most once.",
+                "operationId": "confirm",
+                "parameters": [
+                    {
+                        "name": "paymentId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentIntentView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/payment-intents/{paymentId}/cancel": {
+            "post": {
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Cancel a payment intent that has not been confirmed",
+                "operationId": "cancel",
+                "parameters": [
+                    {
+                        "name": "paymentId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentIntentView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/notifications/read": {
+            "post": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Mark all notifications as read",
+                "operationId": "markRead",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/merchant/webhooks": {
+            "get": {
+                "tags": [
+                    "Webhooks"
+                ],
+                "summary": "List webhook endpoints (secrets are never returned)",
+                "operationId": "list_3",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/WebhookView"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Webhooks"
+                ],
+                "summary": "Register a webhook endpoint",
+                "description": "The URL is validated against SSRF rules. The signing secret is returned once, here.",
+                "operationId": "create_3",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateWebhookRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WebhookWithSecret"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/merchant/webhooks/{webhookId}/test": {
+            "post": {
+                "tags": [
+                    "Webhooks"
+                ],
+                "summary": "Queue a webhook.test event for this endpoint",
+                "operationId": "test",
+                "parameters": [
+                    {
+                        "name": "webhookId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeliveryView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/merchant/webhooks/{webhookId}/rotate-secret": {
+            "post": {
+                "tags": [
+                    "Webhooks"
+                ],
+                "summary": "Rotate the signing secret (returned once)",
+                "operationId": "rotate",
+                "parameters": [
+                    {
+                        "name": "webhookId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WebhookWithSecret"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/merchant/webhooks/{webhookId}/replay": {
+            "post": {
+                "tags": [
+                    "Webhooks"
+                ],
+                "summary": "Manually replay a delivery (bounded number of replays)",
+                "operationId": "replay",
+                "parameters": [
+                    {
+                        "name": "webhookId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReplayRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeliveryView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/merchant/payouts": {
+            "get": {
+                "tags": [
+                    "Merchant"
+                ],
+                "summary": "Payout history",
+                "operationId": "payouts",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageResponsePayoutView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Merchant"
+                ],
+                "summary": "Pay out available balance to the linked bank account (sandbox)",
+                "description": "Requires Idempotency-Key.",
+                "operationId": "payout",
+                "parameters": [
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PayoutRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PayoutView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/auth/register": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Register a customer or merchant",
+                "description": "Creates the user and its ledger account(s), starts a session and sets the HttpOnly refresh cookie.",
+                "operationId": "register",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegisterRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AuthResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/refresh": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Rotate the refresh token and issue a new access token",
+                "description": "Requires the lf_refresh cookie and the X-XSRF-TOKEN header (double-submit CSRF).",
+                "operationId": "refresh",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AuthResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/password": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Change password; signs out all other sessions",
+                "operationId": "changePassword",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ChangePasswordRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/auth/logout": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Revoke the current session and clear the refresh cookie",
+                "operationId": "logout",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/logout-all": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Revoke every session of the current user",
+                "operationId": "logoutAll",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/auth/login": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Sign in with email and password",
+                "operationId": "login",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LoginRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AuthResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/ledger/transactions/{transactionId}/reversal": {
+            "post": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Post a full reversal of a top-up or transfer (correction)",
+                "description": "Ledger history is never edited: corrections are new, balanced transactions that reference the original. Payments must be refunded instead. Requires Idempotency-Key.",
+                "operationId": "reverse",
+                "parameters": [
+                    {
+                        "name": "transactionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReversalRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReversalView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/merchant/webhooks/{webhookId}": {
+            "delete": {
+                "tags": [
+                    "Webhooks"
+                ],
+                "summary": "Delete a webhook endpoint",
+                "operationId": "delete",
+                "parameters": [
+                    {
+                        "name": "webhookId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Webhooks"
+                ],
+                "summary": "Update URL, description, subscribed events or enabled flag",
+                "operationId": "update",
+                "parameters": [
+                    {
+                        "name": "webhookId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateWebhookRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WebhookView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/merchant/profile": {
+            "get": {
+                "tags": [
+                    "Merchant"
+                ],
+                "summary": "Merchant business profile",
+                "operationId": "profile",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProfileView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Merchant"
+                ],
+                "summary": "Update merchant business profile",
+                "operationId": "updateProfile",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateProfileRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProfileView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/auth/me": {
+            "get": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Current user profile",
+                "operationId": "me",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserProfile"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Update the current user's display name",
+                "operationId": "updateMe",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateProfileRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserProfile"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/wallet": {
+            "get": {
+                "tags": [
+                    "Wallet"
+                ],
+                "summary": "Wallet overview",
+                "operationId": "wallet",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WalletView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/wallet/statement": {
+            "get": {
+                "tags": [
+                    "Wallet"
+                ],
+                "summary": "Wallet statement with opening/closing and running balances",
+                "operationId": "statement",
+                "parameters": [
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Statement"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/wallet/balance": {
+            "get": {
+                "tags": [
+                    "Wallet"
+                ],
+                "summary": "Current wallet balance",
+                "operationId": "balance",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BalanceView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/transfers/{transferId}": {
+            "get": {
+                "tags": [
+                    "Transfers"
+                ],
+                "summary": "Get one transfer you sent or received",
+                "operationId": "get",
+                "parameters": [
+                    {
+                        "name": "transferId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TransferView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/transactions": {
+            "get": {
+                "tags": [
+                    "Transactions"
+                ],
+                "summary": "Transactions touching the caller's accounts",
+                "description": "Filter by type (TOP_UP, TRANSFER, PAYMENT, REFUND, PAYOUT, REVERSAL), currency, direction (IN/OUT), date range and free text; sort by createdAt or amount.",
+                "operationId": "list_4",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "currency",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageResponseTransactionSummary"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/transactions/{transactionId}": {
+            "get": {
+                "tags": [
+                    "Transactions"
+                ],
+                "summary": "Transaction detail",
+                "operationId": "detail",
+                "parameters": [
+                    {
+                        "name": "transactionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TransactionDetail"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/transactions/{transactionId}/ledger": {
+            "get": {
+                "tags": [
+                    "Transactions"
+                ],
+                "summary": "Double-entry postings of a transaction with debit/credit totals",
+                "operationId": "ledger",
+                "parameters": [
+                    {
+                        "name": "transactionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LedgerView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/payment-intents/{paymentId}": {
+            "get": {
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Get a payment intent",
+                "operationId": "get_1",
+                "parameters": [
+                    {
+                        "name": "paymentId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentIntentView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/notifications": {
+            "get": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Recent activity notifications",
+                "operationId": "list_5",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Notifications"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/meta": {
+            "get": {
+                "tags": [
+                    "Overview"
+                ],
+                "summary": "Public platform configuration relevant to clients",
+                "operationId": "meta",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Meta"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/merchants": {
+            "get": {
+                "tags": [
+                    "Merchant"
+                ],
+                "summary": "Directory of active merchants a customer can pay",
+                "operationId": "directory",
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/DirectoryEntry"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/merchant/webhooks/{webhookId}/deliveries": {
+            "get": {
+                "tags": [
+                    "Webhooks"
+                ],
+                "summary": "Delivery history for an endpoint",
+                "operationId": "deliveries",
+                "parameters": [
+                    {
+                        "name": "webhookId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageResponseDeliveryView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/merchant/webhooks/{webhookId}/deliveries/{deliveryId}": {
+            "get": {
+                "tags": [
+                    "Webhooks"
+                ],
+                "summary": "One delivery with its full attempt history",
+                "operationId": "delivery",
+                "parameters": [
+                    {
+                        "name": "webhookId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "deliveryId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeliveryView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/merchant/webhooks/sandbox-receipts": {
+            "get": {
+                "tags": [
+                    "Webhooks"
+                ],
+                "summary": "Recent deliveries received by the built-in sandbox receiver",
+                "operationId": "receipts",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ReceiptView"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/merchant/webhooks/event-types": {
+            "get": {
+                "tags": [
+                    "Webhooks"
+                ],
+                "summary": "Event types available for subscription",
+                "operationId": "eventTypes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/merchant/reports": {
+            "get": {
+                "tags": [
+                    "Merchant"
+                ],
+                "summary": "Daily gross, fee, net and refund totals for a date range (UTC days)",
+                "operationId": "reports",
+                "parameters": [
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Report"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/merchant/payments": {
+            "get": {
+                "tags": [
+                    "Merchant"
+                ],
+                "summary": "Payments received by this merchant",
+                "operationId": "payments",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageResponsePaymentIntentView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/merchant/dashboard": {
+            "get": {
+                "tags": [
+                    "Merchant"
+                ],
+                "summary": "Merchant summary metrics and 30-day activity",
+                "operationId": "dashboard",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Dashboard"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/merchant/balance": {
+            "get": {
+                "tags": [
+                    "Merchant"
+                ],
+                "summary": "Merchant payable balance",
+                "operationId": "balance_1",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BalanceView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/dashboard/summary": {
+            "get": {
+                "tags": [
+                    "Overview"
+                ],
+                "summary": "Balance, totals by transaction type and 30-day inflow/outflow for the caller's account",
+                "operationId": "summary",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Summary"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/auth/sessions": {
+            "get": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "List active sessions",
+                "operationId": "sessions",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/SessionView"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/auth/csrf": {
+            "get": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Issue the XSRF-TOKEN cookie required by refresh/logout",
+                "operationId": "csrf",
+                "parameters": [
+                    {
+                        "name": "token",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/CsrfToken"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CsrfResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/users": {
+            "get": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Search users",
+                "operationId": "users",
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageResponseUserView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/system-accounts": {
+            "get": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "System ledger accounts with balances",
+                "operationId": "systemAccounts",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/AccountView"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/reconciliation": {
+            "get": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Verify balances against ledger entries, per-transaction balance and the accounting equation",
+                "operationId": "reconcile",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Report"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/overview": {
+            "get": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Platform totals and system account balances",
+                "operationId": "overview",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Overview"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/audit-logs": {
+            "get": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Audit log (newest first)",
+                "operationId": "audit",
+                "parameters": [
+                    {
+                        "name": "action",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "actorId",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PageResponseAuditView"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/auth/sessions/{sessionId}": {
+            "delete": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Revoke one of your sessions",
+                "operationId": "revokeSession",
+                "parameters": [
+                    {
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "TopUpRequest": {
+                "type": "object",
+                "properties": {
+                    "amountMinor": {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "Amount in minor units (paise/cents)",
+                        "example": 100000,
+                        "exclusiveMinimum": 0
+                    },
+                    "currency": {
+                        "type": "string",
+                        "example": "INR",
+                        "minLength": 1
+                    }
+                },
+                "required": [
+                    "currency"
+                ]
+            },
+            "TopUpResponse": {
+                "type": "object",
+                "properties": {
+                    "transactionId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "reference": {
+                        "type": "string"
+                    },
+                    "amountMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "balanceAfterMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "CreateTransferRequest": {
+                "type": "object",
+                "properties": {
+                    "recipient": {
+                        "type": "string",
+                        "description": "Recipient email or wallet account number",
+                        "example": "ravi@example.com",
+                        "maxLength": 254,
+                        "minLength": 0
+                    },
+                    "amountMinor": {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "Amount in minor units",
+                        "example": 20000,
+                        "exclusiveMinimum": 0
+                    },
+                    "currency": {
+                        "type": "string",
+                        "example": "INR",
+                        "minLength": 1
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Dinner split",
+                        "maxLength": 140,
+                        "minLength": 0
+                    }
+                },
+                "required": [
+                    "currency",
+                    "recipient"
+                ]
+            },
+            "TransferView": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "reference": {
+                        "type": "string"
+                    },
+                    "direction": {
+                        "type": "string"
+                    },
+                    "counterpartyName": {
+                        "type": "string"
+                    },
+                    "amountMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "ledgerTransactionId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "senderBalanceAfterMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "RecipientLookupRequest": {
+                "type": "object",
+                "properties": {
+                    "recipient": {
+                        "type": "string",
+                        "maxLength": 254,
+                        "minLength": 0
+                    }
+                },
+                "required": [
+                    "recipient"
+                ]
+            },
+            "RecipientView": {
+                "type": "object",
+                "properties": {
+                    "displayName": {
+                        "type": "string"
+                    },
+                    "maskedEmail": {
+                        "type": "string"
+                    },
+                    "accountNumberMasked": {
+                        "type": "string"
+                    },
+                    "currency": {
+                        "type": "string"
+                    }
+                }
+            },
+            "CreateRefundRequest": {
+                "type": "object",
+                "properties": {
+                    "amountMinor": {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "Amount in minor units; omit to refund the full remaining amount",
+                        "exclusiveMinimum": 0
+                    },
+                    "reason": {
+                        "type": "string",
+                        "example": "Customer returned the item",
+                        "maxLength": 255,
+                        "minLength": 0
+                    }
+                }
+            },
+            "RefundView": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "reference": {
+                        "type": "string"
+                    },
+                    "paymentId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "paymentReference": {
+                        "type": "string"
+                    },
+                    "amountMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "feeReversalMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "merchantDebitMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "reason": {
+                        "type": "string"
+                    },
+                    "ledgerTransactionId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "paymentStatus": {
+                        "type": "string"
+                    },
+                    "paymentRefundedAmountMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "paymentRefundableAmountMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "CreatePaymentIntentRequest": {
+                "type": "object",
+                "properties": {
+                    "merchantId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Merchant user id from GET /api/v1/merchants"
+                    },
+                    "amountMinor": {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "Gross amount in minor units",
+                        "example": 100000,
+                        "exclusiveMinimum": 0
+                    },
+                    "currency": {
+                        "type": "string",
+                        "example": "INR",
+                        "minLength": 1
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Order #1042",
+                        "maxLength": 255,
+                        "minLength": 0
+                    },
+                    "metadata": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "currency",
+                    "merchantId"
+                ]
+            },
+            "Party": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "maskedEmail": {
+                        "type": "string"
+                    }
+                }
+            },
+            "PaymentIntentView": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "reference": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "amountMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "feeBps": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "platformFeeMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "merchantNetMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "refundedAmountMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "refundableAmountMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "metadata": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "merchant": {
+                        "$ref": "#/components/schemas/Party"
+                    },
+                    "customer": {
+                        "$ref": "#/components/schemas/Party"
+                    },
+                    "failureCode": {
+                        "type": "string"
+                    },
+                    "failureMessage": {
+                        "type": "string"
+                    },
+                    "ledgerTransactionId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "capturedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "cancelledAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "CreateWebhookRequest": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "example": "https://merchant.example.com/webhooks/ledgerforge",
+                        "maxLength": 2048,
+                        "minLength": 0
+                    },
+                    "description": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 0
+                    },
+                    "events": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "maxItems": 20,
+                        "minItems": 0
+                    }
+                },
+                "required": [
+                    "events",
+                    "url"
+                ]
+            },
+            "DeliveryStats": {
+                "type": "object",
+                "properties": {
+                    "succeeded": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "pending": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "dead": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
+            "WebhookView": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "events": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "secretHint": {
+                        "type": "string"
+                    },
+                    "stats": {
+                        "$ref": "#/components/schemas/DeliveryStats"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "WebhookWithSecret": {
+                "type": "object",
+                "properties": {
+                    "webhook": {
+                        "$ref": "#/components/schemas/WebhookView"
+                    },
+                    "secret": {
+                        "type": "string"
+                    }
+                }
+            },
+            "AttemptView": {
+                "type": "object",
+                "properties": {
+                    "attemptNumber": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "httpStatus": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "durationMs": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "responseSnippet": {
+                        "type": "string"
+                    },
+                    "attemptedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "DeliveryView": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "eventId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "eventType": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "attemptCount": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "replayCount": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "nextAttemptAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "lastAttemptAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "lastHttpStatus": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "lastError": {
+                        "type": "string"
+                    },
+                    "deliveredAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "payload": {
+                        "$ref": "#/components/schemas/JsonNode"
+                    },
+                    "attempts": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AttemptView"
+                        }
+                    }
+                }
+            },
+            "JsonNode": {
+                "type": "object",
+                "properties": {
+                    "floatingPointNumber": {
+                        "type": "boolean"
+                    },
+                    "integralNumber": {
+                        "type": "boolean"
+                    },
+                    "missingNode": {
+                        "type": "boolean"
+                    },
+                    "nodeType": {
+                        "type": "string",
+                        "enum": [
+                            "ARRAY",
+                            "BINARY",
+                            "BOOLEAN",
+                            "MISSING",
+                            "NULL",
+                            "NUMBER",
+                            "OBJECT",
+                            "POJO",
+                            "STRING"
+                        ]
+                    },
+                    "string": {
+                        "type": "boolean"
+                    },
+                    "valueNode": {
+                        "type": "boolean"
+                    },
+                    "container": {
+                        "type": "boolean"
+                    },
+                    "object": {
+                        "type": "boolean"
+                    },
+                    "pojo": {
+                        "type": "boolean"
+                    },
+                    "short": {
+                        "type": "boolean"
+                    },
+                    "int": {
+                        "type": "boolean"
+                    },
+                    "long": {
+                        "type": "boolean"
+                    },
+                    "double": {
+                        "type": "boolean"
+                    },
+                    "bigDecimal": {
+                        "type": "boolean"
+                    },
+                    "bigInteger": {
+                        "type": "boolean"
+                    },
+                    "textual": {
+                        "type": "boolean",
+                        "deprecated": true
+                    },
+                    "boolean": {
+                        "type": "boolean"
+                    },
+                    "binary": {
+                        "type": "boolean"
+                    },
+                    "number": {
+                        "type": "boolean"
+                    },
+                    "array": {
+                        "type": "boolean"
+                    },
+                    "empty": {
+                        "type": "boolean"
+                    },
+                    "null": {
+                        "type": "boolean"
+                    },
+                    "float": {
+                        "type": "boolean"
+                    },
+                    "embeddedValue": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "ReplayRequest": {
+                "type": "object",
+                "properties": {
+                    "deliveryId": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "required": [
+                    "deliveryId"
+                ]
+            },
+            "PayoutRequest": {
+                "type": "object",
+                "properties": {
+                    "amountMinor": {
+                        "type": "integer",
+                        "format": "int64",
+                        "exclusiveMinimum": 0
+                    }
+                }
+            },
+            "PayoutView": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "reference": {
+                        "type": "string"
+                    },
+                    "amountMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "ledgerTransactionId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "balanceAfterMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "RegisterRequest": {
+                "type": "object",
+                "properties": {
+                    "fullName": {
+                        "type": "string",
+                        "example": "Asha Verma",
+                        "maxLength": 120,
+                        "minLength": 0
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "asha@example.com",
+                        "maxLength": 254,
+                        "minLength": 0
+                    },
+                    "password": {
+                        "type": "string",
+                        "example": "correct-horse-42",
+                        "maxLength": 64,
+                        "minLength": 10
+                    },
+                    "accountType": {
+                        "type": "string",
+                        "enum": [
+                            "CUSTOMER",
+                            "MERCHANT"
+                        ],
+                        "example": "CUSTOMER"
+                    },
+                    "currency": {
+                        "type": "string",
+                        "example": "INR",
+                        "pattern": "INR|USD"
+                    },
+                    "businessName": {
+                        "type": "string",
+                        "example": "Chai & Co",
+                        "maxLength": 120,
+                        "minLength": 0
+                    },
+                    "category": {
+                        "type": "string",
+                        "example": "Food & Beverage",
+                        "maxLength": 64,
+                        "minLength": 0
+                    },
+                    "acceptTerms": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "accountType",
+                    "email",
+                    "fullName",
+                    "password"
+                ]
+            },
+            "AuthResponse": {
+                "type": "object",
+                "properties": {
+                    "accessToken": {
+                        "type": "string"
+                    },
+                    "tokenType": {
+                        "type": "string"
+                    },
+                    "expiresInSeconds": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "user": {
+                        "$ref": "#/components/schemas/UserProfile"
+                    }
+                }
+            },
+            "MerchantInfo": {
+                "type": "object",
+                "properties": {
+                    "profileId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "businessName": {
+                        "type": "string"
+                    },
+                    "category": {
+                        "type": "string"
+                    },
+                    "supportEmail": {
+                        "type": "string"
+                    }
+                }
+            },
+            "UserProfile": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "fullName": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": [
+                            "CUSTOMER",
+                            "MERCHANT",
+                            "ADMIN"
+                        ]
+                    },
+                    "defaultCurrency": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "lastLoginAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "merchant": {
+                        "$ref": "#/components/schemas/MerchantInfo"
+                    }
+                }
+            },
+            "ChangePasswordRequest": {
+                "type": "object",
+                "properties": {
+                    "currentPassword": {
+                        "type": "string",
+                        "maxLength": 128,
+                        "minLength": 0
+                    },
+                    "newPassword": {
+                        "type": "string",
+                        "maxLength": 64,
+                        "minLength": 10
+                    }
+                },
+                "required": [
+                    "currentPassword",
+                    "newPassword"
+                ]
+            },
+            "LoginRequest": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 254,
+                        "minLength": 0
+                    },
+                    "password": {
+                        "type": "string",
+                        "maxLength": 128,
+                        "minLength": 0
+                    }
+                },
+                "required": [
+                    "email",
+                    "password"
+                ]
+            },
+            "ReversalRequest": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 0
+                    }
+                },
+                "required": [
+                    "reason"
+                ]
+            },
+            "ReversalView": {
+                "type": "object",
+                "properties": {
+                    "transactionId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "reference": {
+                        "type": "string"
+                    },
+                    "reversesTransactionId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "UpdateWebhookRequest": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "minLength": 0
+                    },
+                    "description": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 0
+                    },
+                    "events": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "maxItems": 20,
+                        "minItems": 0
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "UpdateProfileRequest": {
+                "type": "object",
+                "properties": {
+                    "businessName": {
+                        "type": "string",
+                        "maxLength": 120,
+                        "minLength": 0
+                    },
+                    "category": {
+                        "type": "string",
+                        "maxLength": 64,
+                        "minLength": 0
+                    },
+                    "supportEmail": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 254,
+                        "minLength": 0
+                    },
+                    "website": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 0
+                    }
+                },
+                "required": [
+                    "businessName",
+                    "category"
+                ]
+            },
+            "ProfileView": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "businessName": {
+                        "type": "string"
+                    },
+                    "category": {
+                        "type": "string"
+                    },
+                    "supportEmail": {
+                        "type": "string"
+                    },
+                    "website": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "TopUpLimits": {
+                "type": "object",
+                "properties": {
+                    "maxPerTopUpMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "dailyLimitMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "usedTodayMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
+            "WalletView": {
+                "type": "object",
+                "properties": {
+                    "accountId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "accountNumber": {
+                        "type": "string"
+                    },
+                    "accountName": {
+                        "type": "string"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "balanceMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "sandboxEnabled": {
+                        "type": "boolean"
+                    },
+                    "topUpLimits": {
+                        "$ref": "#/components/schemas/TopUpLimits"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "Statement": {
+                "type": "object",
+                "properties": {
+                    "accountNumber": {
+                        "type": "string"
+                    },
+                    "accountName": {
+                        "type": "string"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "from": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "to": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "openingBalanceMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "closingBalanceMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalCreditsMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalDebitsMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "lines": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/StatementLine"
+                        }
+                    },
+                    "page": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "size": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "totalItems": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            },
+            "StatementLine": {
+                "type": "object",
+                "properties": {
+                    "transactionId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "reference": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "direction": {
+                        "type": "string"
+                    },
+                    "amountMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "runningBalanceMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "postedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "BalanceView": {
+                "type": "object",
+                "properties": {
+                    "accountNumber": {
+                        "type": "string"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "balanceMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "asOf": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "PageResponseTransferView": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TransferView"
+                        }
+                    },
+                    "page": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "size": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "totalItems": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            },
+            "PageResponseTransactionSummary": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TransactionSummary"
+                        }
+                    },
+                    "page": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "size": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "totalItems": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            },
+            "TransactionSummary": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "reference": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "counterparty": {
+                        "type": "string"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "amountMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "direction": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "RelatedEntity": {
+                "type": "object",
+                "properties": {
+                    "kind": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "reference": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                }
+            },
+            "TransactionDetail": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "reference": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "counterparty": {
+                        "type": "string"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "amountMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "direction": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "postedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "idempotencyKey": {
+                        "type": "string"
+                    },
+                    "related": {
+                        "$ref": "#/components/schemas/RelatedEntity"
+                    },
+                    "reversesTransactionId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "reversesReference": {
+                        "type": "string"
+                    },
+                    "reversedBy": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                }
+            },
+            "LedgerLine": {
+                "type": "object",
+                "properties": {
+                    "entryId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "sequenceNumber": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "accountLabel": {
+                        "type": "string"
+                    },
+                    "accountNumber": {
+                        "type": "string"
+                    },
+                    "accountType": {
+                        "type": "string"
+                    },
+                    "entryType": {
+                        "type": "string"
+                    },
+                    "debitMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "creditMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "ownedByViewer": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "LedgerView": {
+                "type": "object",
+                "properties": {
+                    "transactionId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "reference": {
+                        "type": "string"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "lines": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/LedgerLine"
+                        }
+                    },
+                    "totalDebitsMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalCreditsMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "balanced": {
+                        "type": "boolean"
+                    },
+                    "postedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "PageResponsePaymentIntentView": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PaymentIntentView"
+                        }
+                    },
+                    "page": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "size": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "totalItems": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            },
+            "Notification": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "body": {
+                        "type": "string"
+                    },
+                    "link": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "unread": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "Notifications": {
+                "type": "object",
+                "properties": {
+                    "unreadCount": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Notification"
+                        }
+                    }
+                }
+            },
+            "Meta": {
+                "type": "object",
+                "properties": {
+                    "environment": {
+                        "type": "string"
+                    },
+                    "sandboxEnabled": {
+                        "type": "boolean"
+                    },
+                    "platformFeeBps": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "currencies": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "maxTopUpMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "dailyTopUpLimitMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "sandboxReceiverBaseUrl": {
+                        "type": "string"
+                    }
+                }
+            },
+            "DirectoryEntry": {
+                "type": "object",
+                "properties": {
+                    "merchantId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "businessName": {
+                        "type": "string"
+                    },
+                    "category": {
+                        "type": "string"
+                    },
+                    "currencies": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "PageResponseDeliveryView": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DeliveryView"
+                        }
+                    },
+                    "page": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "size": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "totalItems": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            },
+            "ReceiptView": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "eventId": {
+                        "type": "string"
+                    },
+                    "eventType": {
+                        "type": "string"
+                    },
+                    "signatureValid": {
+                        "type": "boolean"
+                    },
+                    "receivedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "DailyPoint": {
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "grossMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "feesMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "netMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "refundsMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "count": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
+            "Report": {
+                "type": "object",
+                "properties": {
+                    "from": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "to": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "grossVolumeMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "platformFeesMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "netVolumeMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "refundedMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "successfulPayments": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "days": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DailyPoint"
+                        }
+                    }
+                }
+            },
+            "PageResponsePayoutView": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PayoutView"
+                        }
+                    },
+                    "page": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "size": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "totalItems": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            },
+            "Dashboard": {
+                "type": "object",
+                "properties": {
+                    "businessName": {
+                        "type": "string"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "balanceMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "grossVolumeMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "platformFeesMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "netVolumeMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "refundedMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "paidOutMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "successfulPayments": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "failedPayments": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "pendingPayments": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "paymentsByStatus": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    },
+                    "last30Days": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DailyPoint"
+                        }
+                    }
+                }
+            },
+            "DayPoint": {
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "inMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "outMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
+            "Summary": {
+                "type": "object",
+                "properties": {
+                    "accountNumber": {
+                        "type": "string"
+                    },
+                    "accountKind": {
+                        "type": "string"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "balanceMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalInMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalOutMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "byType": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TypeTotal"
+                        }
+                    },
+                    "successfulPayments": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "pendingPayments": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "transactionCount": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "last30Days": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DayPoint"
+                        }
+                    }
+                }
+            },
+            "TypeTotal": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string"
+                    },
+                    "inMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "outMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "count": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
+            "SessionView": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "lastUsedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "userAgent": {
+                        "type": "string"
+                    },
+                    "ipAddress": {
+                        "type": "string"
+                    },
+                    "current": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "CsrfToken": {
+                "type": "object",
+                "properties": {
+                    "headerName": {
+                        "type": "string"
+                    },
+                    "token": {
+                        "type": "string"
+                    },
+                    "parameterName": {
+                        "type": "string"
+                    }
+                }
+            },
+            "CsrfResponse": {
+                "type": "object",
+                "properties": {
+                    "headerName": {
+                        "type": "string"
+                    },
+                    "token": {
+                        "type": "string"
+                    }
+                }
+            },
+            "PageResponseUserView": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/UserView"
+                        }
+                    },
+                    "page": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "size": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "totalItems": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            },
+            "UserView": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "fullName": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "lastLoginAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "AccountView": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "accountNumber": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "purpose": {
+                        "type": "string"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "balanceMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
+            "CurrencyVolume": {
+                "type": "object",
+                "properties": {
+                    "currency": {
+                        "type": "string"
+                    },
+                    "capturedMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "feesMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "refundedMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "walletLiabilitiesMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "merchantLiabilitiesMinor": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            },
+            "Overview": {
+                "type": "object",
+                "properties": {
+                    "usersByRole": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    },
+                    "ledgerTransactions": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "ledgerEntries": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "paymentsByStatus": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    },
+                    "volumes": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CurrencyVolume"
+                        }
+                    },
+                    "systemAccounts": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AccountView"
+                        }
+                    },
+                    "webhookDeliveriesByStatus": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                }
+            },
+            "AuditView": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "actorId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "actorRole": {
+                        "type": "string"
+                    },
+                    "action": {
+                        "type": "string"
+                    },
+                    "resourceType": {
+                        "type": "string"
+                    },
+                    "resourceId": {
+                        "type": "string"
+                    },
+                    "result": {
+                        "type": "string"
+                    },
+                    "correlationId": {
+                        "type": "string"
+                    },
+                    "metadata": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "PageResponseAuditView": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AuditView"
+                        }
+                    },
+                    "page": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "size": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "totalItems": {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            }
+        },
+        "securitySchemes": {
+            "bearer": {
+                "type": "http",
+                "description": "Access token from /api/v1/auth/login (10 minute lifetime)",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        }
+    }
+}

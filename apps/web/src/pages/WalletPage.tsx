@@ -357,6 +357,7 @@ export default function WalletPage() {
             <p className="text-[13px] font-medium text-muted">Account details</p>
             {w ? (
               <DefinitionList
+                compact
                 items={[
                   {
                     label: 'Account number',
