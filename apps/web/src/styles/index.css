@@ -82,3 +82,38 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------------------------------------------------------------- Motion */
+@keyframes lf-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes lf-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes lf-pop {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes lf-progress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+@utility animate-page { animation: lf-fade-up 260ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@utility animate-fade { animation: lf-fade 160ms ease-out both; }
+@utility animate-pop { animation: lf-pop 160ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+/* Radix overlays */
+[data-radix-popper-content-wrapper] > [role='menu'],
+[role='dialog'][data-state='open'] { animation: lf-pop 160ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #d5dbe5 transparent;
+}
+
+/* Staggered children for dashboards */
+.stagger > * { animation: lf-fade-up 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.stagger > *:nth-child(2) { animation-delay: 40ms; }
+.stagger > *:nth-child(3) { animation-delay: 80ms; }
+.stagger > *:nth-child(4) { animation-delay: 120ms; }
+.stagger > *:nth-child(5) { animation-delay: 160ms; }
+.stagger > *:nth-child(6) { animation-delay: 200ms; }

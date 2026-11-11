@@ -1,4 +1,5 @@
-import { ArrowRight, ListOrdered } from 'lucide-react';
+import { ArrowRight, ChevronRight, ListOrdered } from 'lucide-react';
+import * as React from 'react';
 import { useNavigate } from 'react-router';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { EmptyState, Money, StatusBadge, TxTypeIcon, typeLabel } from '@/components/shared';
@@ -8,7 +9,26 @@ import { formatMoney } from '@/lib/money';
 import type { PaymentIntent, TransactionSummary } from '@/types/api';
 
 /** Ledger-backed activity table: amounts are signed from the viewer's perspective. */
-export function TransactionsTable({ items, emptyAction }: { items: TransactionSummary[]; emptyAction?: React.ReactNode }) {
+/** "Today", "Yesterday" or a short date for grouping rows by local day. */
+export function dayLabel(iso: string, now: Date = new Date()): string {
+  const d = new Date(iso);
+  const key = (x: Date) => `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`;
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (key(d) === key(now)) return 'Today';
+  if (key(d) === key(yesterday)) return 'Yesterday';
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+export function TransactionsTable({
+  items,
+  emptyAction,
+  groupByDay,
+}: {
+  items: TransactionSummary[];
+  emptyAction?: React.ReactNode;
+  groupByDay?: boolean;
+}) {
   const navigate = useNavigate();
   if (items.length === 0) {
     return (
@@ -30,10 +50,19 @@ export function TransactionsTable({ items, emptyAction }: { items: TransactionSu
           <TH className="hidden lg:table-cell">Date</TH>
           <TH className="text-right">Amount</TH>
           <TH className="hidden sm:table-cell">Status</TH>
+          <TH className="w-8" aria-label="Open" />
         </TR>
       </THead>
       <TBody>
-        {items.map((t) => (
+        {items.map((t, i) => (
+          <React.Fragment key={t.id}>
+          {groupByDay && (i === 0 || dayLabel(items[i - 1]!.createdAt) !== dayLabel(t.createdAt)) && (
+            <tr className="bg-subtle/50">
+              <td colSpan={7} className="px-5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
+                {dayLabel(t.createdAt)}
+              </td>
+            </tr>
+          )}
           <TR
             key={t.id}
             tabIndex={0}
@@ -43,7 +72,7 @@ export function TransactionsTable({ items, emptyAction }: { items: TransactionSu
             onKeyDown={(e) => {
               if (e.key === 'Enter') navigate(`/transactions/${t.id}`);
             }}
-            className="cursor-pointer transition-colors hover:bg-subtle/60 focus-visible:bg-subtle/60 focus-visible:outline-none"
+            className="group cursor-pointer transition-colors hover:bg-subtle/60 focus-visible:bg-subtle/60 focus-visible:outline-none"
           >
             <TD>
               <div className="flex items-center gap-3">
@@ -63,7 +92,11 @@ export function TransactionsTable({ items, emptyAction }: { items: TransactionSu
             <TD className="hidden sm:table-cell">
               <StatusBadge status={t.status} />
             </TD>
+            <TD className="w-8 pl-0 text-faint">
+              <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:text-ink-soft" aria-hidden />
+            </TD>
           </TR>
+          </React.Fragment>
         ))}
       </TBody>
     </Table>
@@ -96,7 +129,7 @@ export function PaymentsTable({ items, perspective }: { items: PaymentIntent[]; 
             onKeyDown={(e) => {
               if (e.key === 'Enter') navigate(`/payments/${p.id}`);
             }}
-            className="cursor-pointer transition-colors hover:bg-subtle/60 focus-visible:bg-subtle/60 focus-visible:outline-none"
+            className="group cursor-pointer transition-colors hover:bg-subtle/60 focus-visible:bg-subtle/60 focus-visible:outline-none"
           >
             <TD>
               <p className="font-mono text-xs font-medium text-ink">{p.reference}</p>

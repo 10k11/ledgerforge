@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { JsonViewer } from '@/components/shared';
 import { TransactionsTable } from '@/components/shared/finance';
-import { navItemsFor } from '@/layouts/AppLayout';
+import { navItemsFor } from '@/layouts/nav';
 import { ApiError } from '@/lib/api';
 import { SendMoneyCard } from '@/pages/TransfersPage';
 import { TopUpDialog } from '@/pages/WalletPage';

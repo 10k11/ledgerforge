@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, ArrowUpRight, BookOpenCheck, Info, Scale } from 'lucide-react';
+import { AlertTriangle, ArrowRight, ArrowUpRight, BookOpenCheck, Info, Scale } from 'lucide-react';
 import { Link, useParams } from 'react-router';
 import { CopyButton, DefinitionList, ErrorState, PageHeader, StatusBadge, TxTypeIcon, typeLabel } from '@/components/shared';
 import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton, Tooltip } from '@/components/ui/primitives';
@@ -24,6 +24,51 @@ const NORMAL_SIDE: Record<string, string> = {
   EQUITY: 'Credit-normal: credits increase it',
   REVENUE: 'Credit-normal: credits increase it',
 };
+
+/** Visual summary of a posting: debited accounts (money leaves) → credited accounts (money arrives). */
+export function MoneyFlow({ ledger }: { ledger: LedgerView }) {
+  const debits = ledger.lines.filter((l) => l.debitMinor > 0);
+  const credits = ledger.lines.filter((l) => l.creditMinor > 0);
+  const total = ledger.totalDebitsMinor || 1;
+  const Node = ({ label, number, amount, mine, side }: { label: string; number: string; amount: number; mine: boolean; side: 'D' | 'C' }) => (
+    <div className={cn('rounded-xl border bg-surface px-4 py-3 shadow-[0_1px_0_rgb(23_32_51/0.03)]', mine ? 'border-primary/40 ring-1 ring-primary/20' : 'border-line')}>
+      <div className="flex items-center justify-between gap-3">
+        <p className="truncate text-[13px] font-medium text-ink">{label}</p>
+        <span className={cn('rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold', side === 'D' ? 'bg-subtle text-ink-soft' : 'bg-primary-soft text-primary')}>
+          {side === 'D' ? 'DR' : 'CR'}
+        </span>
+      </div>
+      <p className="font-mono text-[11px] text-muted">{number}</p>
+      <p className="tabular mt-1.5 text-[15px] font-semibold">{formatMoney(amount, ledger.currency)}</p>
+      <div className="mt-2 h-1 overflow-hidden rounded-full bg-subtle">
+        <div className={cn('h-full rounded-full', side === 'D' ? 'bg-ink-soft' : 'bg-primary')} style={{ width: `${(amount / total) * 100}%` }} />
+      </div>
+    </div>
+  );
+  return (
+    <div className="grid grid-cols-1 items-center gap-3 border-b border-line bg-gradient-to-b from-subtle/60 to-surface px-5 py-5 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+      <div className="space-y-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Debited</p>
+        {debits.map((l) => (
+          <Node key={l.entryId} label={l.accountLabel} number={l.accountNumber} amount={l.debitMinor} mine={l.ownedByViewer} side="D" />
+        ))}
+      </div>
+      <div className="flex flex-col items-center gap-1 py-2 text-center">
+        <span className="grid size-10 place-items-center rounded-full bg-ink text-white shadow-md">
+          <ArrowRight className="size-4 max-md:rotate-90" aria-hidden />
+        </span>
+        <p className="tabular text-xs font-semibold text-ink">{formatMoney(ledger.totalDebitsMinor, ledger.currency)}</p>
+        <p className="text-[10px] uppercase tracking-wider text-muted">{ledger.lines.length} postings</p>
+      </div>
+      <div className="space-y-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Credited</p>
+        {credits.map((l) => (
+          <Node key={l.entryId} label={l.accountLabel} number={l.accountNumber} amount={l.creditMinor} mine={l.ownedByViewer} side="C" />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function LedgerTable({ ledger }: { ledger: LedgerView }) {
   const dash = <span className="text-faint">—</span>;
@@ -220,6 +265,7 @@ export default function TransactionDetailPage() {
             <ErrorState error={ledger.error} onRetry={() => ledger.refetch()} />
           ) : (
             <>
+              <MoneyFlow ledger={l!} />
               <LedgerTable ledger={l!} />
               <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-3">
                 <div className="rounded-lg border border-line px-4 py-3">

@@ -7,9 +7,9 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class TimeConfig {
 
-    /** All timestamps are produced from a UTC clock; injectable for tests. */
+    /** All timestamps are produced from a UTC clock; see {@link ShiftableClock} for the seeder hook. */
     @Bean
-    public Clock clock() {
-        return Clock.systemUTC();
+    public ShiftableClock clock() {
+        return new ShiftableClock(Clock.systemUTC());
     }
 }

@@ -10,7 +10,7 @@ import { Field, Input, NativeSelect } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/primitives';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useDocumentTitle } from '@/hooks';
-import { Wordmark } from '@/layouts/AppLayout';
+import { Logo, Wordmark } from '@/layouts/Wordmark';
 import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
@@ -44,11 +44,7 @@ function AuthShell({ children, title, subtitle }: { children: React.ReactNode; t
           aria-hidden
         />
         <div className="relative flex items-center gap-2.5">
-          <svg viewBox="0 0 32 32" className="size-8" aria-hidden>
-            <rect width="32" height="32" rx="8" fill="#fff" />
-            <path d="M9 9h4v10h10v4H9z" fill="#172033" />
-            <path d="M17 9h6v6h-6z" fill="#2563EB" />
-          </svg>
+          <Logo inverted className="size-8" />
           <span className="text-base font-semibold text-white">LedgerForge</span>
         </div>
         <div className="relative max-w-lg">
