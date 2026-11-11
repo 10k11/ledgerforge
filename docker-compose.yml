@@ -1,0 +1,56 @@
+# LedgerForge local stack: PostgreSQL + API + web.
+#   cp .env.example .env   # then set real secrets
+#   docker compose up --build
+# Web: http://localhost:3000   API: http://localhost:8080   Swagger: http://localhost:8080/swagger-ui.html
+name: ledgerforge
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ledgerforge
+      POSTGRES_USER: ${DATABASE_USERNAME:-ledgerforge}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d ledgerforge"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./apps/api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_URL: jdbc:postgresql://postgres:5432/ledgerforge
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-ledgerforge}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env (at least 32 characters)}
+      JWT_ISSUER: ${JWT_ISSUER:-ledgerforge-api}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-ledgerforge-web}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3000}
+      SANDBOX_ENABLED: ${SANDBOX_ENABLED:-true}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+      WEBHOOK_ENCRYPTION_KEY: ${WEBHOOK_ENCRYPTION_KEY:-}
+      SELF_BASE_URL: http://localhost:8080
+      LOGGING_STRUCTURED_FORMAT_CONSOLE: ecs
+    ports:
+      - "127.0.0.1:8080:8080"
+
+  web:
+    build: ./apps/web
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:80"
+
+volumes:
+  pgdata:

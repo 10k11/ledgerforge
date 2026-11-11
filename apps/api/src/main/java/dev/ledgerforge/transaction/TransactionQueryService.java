@@ -351,7 +351,11 @@ public class TransactionQueryService {
                     }
                     UUID other = viewer.equals(p[0]) ? p[1] : p[0];
                     UserDirectory.Party party = names.get(other);
-                    yield party == null ? null : UserDirectory.shortName(party.displayName());
+                    yield party == null
+                            ? null
+                            : party.role() == dev.ledgerforge.user.Role.MERCHANT
+                                    ? party.displayName()
+                                    : UserDirectory.shortName(party.displayName());
                 }
             };
             out.put(r.id(), label);

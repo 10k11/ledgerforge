@@ -1,6 +1,9 @@
 spring:
   application:
     name: ledgerforge-api
+  # Local convenience: read KEY=VALUE pairs from a .env file next to the API or at the repo root.
+  config:
+    import: "optional:file:./.env[.properties],optional:file:../../.env[.properties]"
   threads:
     virtual:
       enabled: true
